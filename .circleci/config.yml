@@ -31,7 +31,6 @@ code-push: &code-push
     - *debug_logging
     - *update_npm
     - *check_npm_version
-    - *npm_install
 
 jobs:
   code-push:
