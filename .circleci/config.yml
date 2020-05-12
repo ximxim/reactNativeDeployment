@@ -2,63 +2,36 @@ version: 2
 
 aliases:
   - &environment
-    macos:
-      xcode: '11.5.0'
-    working_directory: ~/project
-    shell: /bin/bash --login -o pipefail
-  - &set_ruby_version
+    docker:
+      - image: circleci/ruby:2.4.2-jessie-node
+  - &debug_logging
     run:
-      name: Set Ruby Version
-      command: echo "ruby-2.5.6" > ~/.ruby-version
-  - &restore_node_module_cache
-    restore_cache:
-      key: node-v1-{{ checksum "yarn.lock" }}-{{ arch }}
-  - &install_node_modules
+      name: Debug logging
+      command: echo "Who invited this guy"
+  - &update_npm
     run:
-      name: Install node modules
-      command: yarn
-  - &save_node_module_cache
-    save_cache:
-      key: node-v1-{{ checksum "yarn.lock" }}-{{ arch }}
-      paths:
-        - node_modules
-  - &restore_gem_cache
-    restore_cache:
-      key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
-  - &install_gems
+      name: "Update Node.js and npm"
+      command: |
+        curl -sSL "https://nodejs.org/dist/v11.10.0/node-v11.10.0-linux-x64.tar.xz" | sudo tar --strip-components=2 -xJ -C /usr/local/bin/ node-v11.10.0-linux-x64/bin/node
+        curl https://www.npmjs.com/install.sh | sudo bash
+  - &check_npm_version
     run:
-      command: bundle check || bundle install --path vendor/bundle
-      working_directory: ios
-  - &save_gem_cache
-    save_cache:
-      key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
-      paths:
-        - ios/vendor/bundle
-  - &bundle_ios_react_native_code_and_assets
+      name: Check current version of node
+      command: node -v
+  - &npm_install
     run:
-      name: Bundle iOS React Native Code and Assets
-      command: node_modules/.bin/react-native bundle --entry-file='index.js' --bundle-output='./ios/MyDoh/main.jsbundle' --dev=false --platform='ios' --assets-dest='./ios' --sourcemap-output main.bundle.map
-  - &upload_sentry_source_map
-    run:
-      name: Upload source map to sentry
-      command: node_modules/@sentry/cli/bin/sentry-cli --auth-token $SENTRY_AUTH_TOKEN releases --org rbc-1c --project $SENTRY_PROJECT files $APP_ID-$VERSION upload-sourcemaps --dist $VERSION --rewrite main.bundle.map
-  - &code_push_jsbundle
-    run:
-      name: Push code to production
-      command: appcenter codepush release-react -a ximxim/reactNativeDeployment -d Staging 
+      name: Install npm wee
+      command: npm install
+
 
 code-push: &code-push
   <<: *environment
   steps:
     - checkout
-    - *set_ruby_version
-    - *restore_node_module_cache
-    - *install_node_modules
-    - *save_node_module_cache
-    - *restore_gem_cache
-    - *install_gems
-    - *save_gem_cache
-    - *code_push_jsbundle
+    - *debug_logging
+    - *update_npm
+    - *check_npm_version
+    - *npm_install
 
 jobs:
   code-push:

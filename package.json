@@ -7,7 +7,10 @@
     "ios": "react-native run-ios",
     "start": "react-native start",
     "test": "jest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "precircle": "circleci config process .circleci/config.yml > process.yml",
+    "circle": "circleci local execute -c process.yml --job code-push",
+    "validate-circle": "circleci config validate"
   },
   "dependencies": {
     "@sentry/react-native": "^1.3.7",

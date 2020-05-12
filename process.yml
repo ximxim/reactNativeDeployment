@@ -1,102 +1,78 @@
 version: 2
 aliases:
-- macos:
-    xcode: 11.5.0
-  working_directory: ~/project
-  shell: /bin/bash --login -o pipefail
+- docker:
+  - image: circleci/ruby:2.4.2-jessie-node
 - run:
-    name: Set Ruby Version
-    command: echo "ruby-2.5.6" > ~/.ruby-version
+    name: Debug logging
+    command: echo "Who invited this guy"
+- run:
+    name: Update Node.js and npm
+    command: |
+      curl -sSL "https://nodejs.org/dist/v11.10.0/node-v11.10.0-linux-x64.tar.xz" | sudo tar --strip-components=2 -xJ -C /usr/local/bin/ node-v11.10.0-linux-x64/bin/node
+      curl https://www.npmjs.com/install.sh | sudo bash
+- run:
+    name: Check current version of node
+    command: node -v
 - restore_cache:
-    key: node-v1-{{ checksum "yarn.lock" }}-{{ arch }}
+    key: dependency-cache-{{ checksum "package-lock.json" }}
 - run:
-    name: Install node modules
-    command: yarn
+    name: Install npm wee
+    command: npm install
 - save_cache:
     key: node-v1-{{ checksum "yarn.lock" }}-{{ arch }}
     paths:
     - node_modules
-- restore_cache:
-    key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
-- run:
-    command: bundle check || bundle install --path vendor/bundle
-    working_directory: ios
-- save_cache:
-    key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
-    paths:
-    - ios/vendor/bundle
-- run:
-    name: Bundle iOS React Native Code and Assets
-    command: node_modules/.bin/react-native bundle --entry-file='index.js' --bundle-output='./ios/MyDoh/main.jsbundle' --dev=false --platform='ios' --assets-dest='./ios' --sourcemap-output main.bundle.map
-- run:
-    name: Upload source map to sentry
-    command: node_modules/@sentry/cli/bin/sentry-cli --auth-token $SENTRY_AUTH_TOKEN releases --org rbc-1c --project $SENTRY_PROJECT files $APP_ID-$VERSION upload-sourcemaps --dist $VERSION --rewrite main.bundle.map
-- run:
-    name: Push code to production
-    command: appcenter codepush release-react -a ximxim/reactNativeDeployment -d Staging
 code-push:
-  macos:
-    xcode: 11.5.0
-  working_directory: ~/project
-  shell: /bin/bash --login -o pipefail
+  docker:
+  - image: circleci/ruby:2.4.2-jessie-node
   steps:
   - checkout
   - run:
-      name: Set Ruby Version
-      command: echo "ruby-2.5.6" > ~/.ruby-version
-  - restore_cache:
-      key: node-v1-{{ checksum "yarn.lock" }}-{{ arch }}
+      name: Debug logging
+      command: echo "Who invited this guy"
   - run:
-      name: Install node modules
-      command: yarn
+      name: Update Node.js and npm
+      command: |
+        curl -sSL "https://nodejs.org/dist/v11.10.0/node-v11.10.0-linux-x64.tar.xz" | sudo tar --strip-components=2 -xJ -C /usr/local/bin/ node-v11.10.0-linux-x64/bin/node
+        curl https://www.npmjs.com/install.sh | sudo bash
+  - run:
+      name: Check current version of node
+      command: node -v
+  - restore_cache:
+      key: dependency-cache-{{ checksum "package-lock.json" }}
+  - run:
+      name: Install npm wee
+      command: npm install
   - save_cache:
       key: node-v1-{{ checksum "yarn.lock" }}-{{ arch }}
       paths:
       - node_modules
-  - restore_cache:
-      key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
-  - run:
-      command: bundle check || bundle install --path vendor/bundle
-      working_directory: ios
-  - save_cache:
-      key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
-      paths:
-      - ios/vendor/bundle
-  - run:
-      name: Push code to production
-      command: appcenter codepush release-react -a ximxim/reactNativeDeployment -d Staging
 jobs:
   code-push:
-    macos:
-      xcode: 11.5.0
-    working_directory: ~/project
-    shell: /bin/bash --login -o pipefail
+    docker:
+    - image: circleci/ruby:2.4.2-jessie-node
     steps:
     - checkout
     - run:
-        name: Set Ruby Version
-        command: echo "ruby-2.5.6" > ~/.ruby-version
-    - restore_cache:
-        key: node-v1-{{ checksum "yarn.lock" }}-{{ arch }}
+        name: Debug logging
+        command: echo "Who invited this guy"
     - run:
-        name: Install node modules
-        command: yarn
+        name: Update Node.js and npm
+        command: |
+          curl -sSL "https://nodejs.org/dist/v11.10.0/node-v11.10.0-linux-x64.tar.xz" | sudo tar --strip-components=2 -xJ -C /usr/local/bin/ node-v11.10.0-linux-x64/bin/node
+          curl https://www.npmjs.com/install.sh | sudo bash
+    - run:
+        name: Check current version of node
+        command: node -v
+    - restore_cache:
+        key: dependency-cache-{{ checksum "package-lock.json" }}
+    - run:
+        name: Install npm wee
+        command: npm install
     - save_cache:
         key: node-v1-{{ checksum "yarn.lock" }}-{{ arch }}
         paths:
         - node_modules
-    - restore_cache:
-        key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
-    - run:
-        command: bundle check || bundle install --path vendor/bundle
-        working_directory: ios
-    - save_cache:
-        key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
-        paths:
-        - ios/vendor/bundle
-    - run:
-        name: Push code to production
-        command: appcenter codepush release-react -a ximxim/reactNativeDeployment -d Staging
     environment:
     - APP_ID: org.reactjs.native.example.reactNativeDeployment
     - VERSION: 1.0.0
