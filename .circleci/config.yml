@@ -1,0 +1,83 @@
+version: 2
+
+aliases:
+  - &environment
+    macos:
+      xcode: '11.3.1'
+    working_directory: ~/project
+    shell: /bin/bash --login -o pipefail
+  - &set_ruby_version
+    run:
+      name: Set Ruby Version
+      command: echo "ruby-2.5.6" > ~/.ruby-version
+  - &restore_node_module_cache
+    restore_cache:
+      key: node-v1-{{ checksum "yarn.lock" }}-{{ arch }}
+  - &install_node_modules
+    run:
+      name: Install node modules
+      command: yarn
+  - &save_node_module_cache
+    save_cache:
+      key: node-v1-{{ checksum "yarn.lock" }}-{{ arch }}
+      paths:
+        - node_modules
+  - &restore_gem_cache
+    restore_cache:
+      key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
+  - &install_gems
+    run:
+      command: bundle check || bundle install --path vendor/bundle
+      working_directory: ios
+  - &save_gem_cache
+    save_cache:
+      key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
+      paths:
+        - ios/vendor/bundle
+  - &bundle_ios_react_native_code_and_assets
+    run:
+      name: Bundle iOS React Native Code and Assets
+      command: node_modules/.bin/react-native bundle --entry-file='index.js' --bundle-output='./ios/MyDoh/main.jsbundle' --dev=false --platform='ios' --assets-dest='./ios' --sourcemap-output main.bundle.map
+  - &upload_sentry_source_map
+    run:
+      name: Upload source map to sentry
+      command: node_modules/@sentry/cli/bin/sentry-cli --auth-token $SENTRY_AUTH_TOKEN releases --org rbc-1c --project $SENTRY_PROJECT files $APP_ID-$VERSION upload-sourcemaps --dist $VERSION --rewrite main.bundle.map
+  - &code_push_jsbundle
+    run:
+      name: Push code to production
+      command: appcenter codepush release-react -a ximxim/reactNativeDeployment -d Staging 
+
+code-push: &code-push
+  <<: *environment
+  steps:
+    - checkout
+    - *set_ruby_version
+    - *restore_node_module_cache
+    - *install_node_modules
+    - *save_node_module_cache
+    - *restore_gem_cache
+    - *install_gems
+    - *save_gem_cache
+    - *code_push_jsbundle
+
+jobs:
+  code-push:
+    <<: *code-push
+    environment:
+      APP_ID: org.reactjs.native.example.reactNativeDeployment 
+      VERSION: 1.0.0
+      SENTRY_AUTH_TOKEN: 75b4d8dfd9b143d583df267c8100e6da646b0ba759944c7998e652e9c54006fa
+      SENTRY_PROJECT: reactNativeDeployment
+      CODE_PUSH_TOKEN: 57e10840322bb3f642622c6ca64ad0fb2599467d
+      CODE_PUSH_APP_NAME: ximxim/reactNativeDeployment
+
+workflows:
+  version: 2
+  main:
+    jobs:
+      - code-push:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^\d+\.\d+\.\d+$/
