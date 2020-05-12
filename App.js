@@ -6,7 +6,7 @@
  * @flow strict-local
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   SafeAreaView,
   StyleSheet,
@@ -24,10 +24,78 @@ import {
   DebugInstructions,
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
+import CodePush from 'react-native-code-push';
+
 
 import * as Sentry from '@sentry/react-native';
 
 const App: () => React$Node = () => {
+  const [syncMessage, setSyncMessage] = useState('');
+  const [version, setVersion] = useState('');
+  const [progress, setProgress] = useState(false);
+  const [updateMeta, setUpdateMeta] = useState({});
+
+  const codePushStatusDidChange = (syncStatus) => {
+    switch(syncStatus) {
+      case CodePush.SyncStatus.CHECKING_FOR_UPDATE:
+        setSyncMessage('Checking for update.');
+        break;
+      case CodePush.SyncStatus.DOWNLOADING_PACKAGE:
+        setSyncMessage('Downloading package.');
+        break;
+      case CodePush.SyncStatus.AWAITING_USER_ACTION:
+        setSyncMessage('Awaiting user action.');
+        break;
+      case CodePush.SyncStatus.INSTALLING_UPDATE:
+        setSyncMessage('Installing update.');
+        break;
+      case CodePush.SyncStatus.UP_TO_DATE:
+        setSyncMessage('App up to date.');
+        setProgress(false);
+        break;
+      case CodePush.SyncStatus.UPDATE_IGNORED:
+        setSyncMessage('Update cancelled by user.');
+        setProgress(false);
+        break;
+      case CodePush.SyncStatus.UPDATE_INSTALLED:
+        setSyncMessage('Update installed and will be applied on restart.');
+        setProgress(false);
+        break;
+      case CodePush.SyncStatus.UNKNOWN_ERROR:
+        setSyncMessage('An unknown error occurred.');
+        setProgress(false);
+        break;
+    }
+  }
+
+  const codePushDownloadDidProgress = (progress) => {
+    setProgress(`Received ${progress.receivedBytes} of ${progress.totalBytes} total bytes.`);
+  }
+
+  const onButtonPress = () => {
+    CodePush.sync(
+      {}, 
+      codePushStatusDidChange,
+      codePushDownloadDidProgress,
+    );
+  }
+
+  const onCrash = () => {
+    Sentry.nativeCrash();
+  }
+
+  const onGetVersion = async () => {
+    const update = await CodePush.getUpdateMetadata();
+    setUpdateMeta(update);
+  }
+
+  const getVersionInfo = async () => {
+    const update = await CodePush.getCurrentPackage();
+    if (update) {
+      setVersion(`${update.appVersion}-codepush:${update.label}`);
+    }
+  }
+
   return (
     <>
       <StatusBar barStyle="dark-content" />
@@ -36,44 +104,30 @@ const App: () => React$Node = () => {
           contentInsetAdjustmentBehavior="automatic"
           style={styles.scrollView}>
           <Header />
-          {global.HermesInternal == null ? null : (
-            <View style={styles.engine}>
-              <Text style={styles.footer}>Engine: Hermes</Text>
-            </View>
-          )}
           <View style={styles.body}>
             <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Step One</Text>
-              <Text style={styles.sectionDescription}>
-                Edit <Text style={styles.highlight}>App.js</Text> to change this
-                screen and then come back to see your edits.
-              </Text>
+              <Text style={styles.sectionTitle}>SyncMessage: {syncMessage}</Text>
             </View>
             <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>See Your Changes</Text>
-              <Text style={styles.sectionDescription}>
-                <ReloadInstructions />
-              </Text>
+              <Text style={styles.sectionTitle}>Progress: {progress}</Text>
             </View>
             <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Debug</Text>
-              <Text style={styles.sectionDescription}>
-                <DebugInstructions />
-              </Text>
+              <Text style={styles.sectionTitle}>Meta: {JSON.stringify(updateMeta)}</Text>
             </View>
             <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Learn More</Text>
-              <Text style={styles.sectionDescription}>
-                Read the docs to discover what to do next:
-              </Text>
+              <Text style={styles.sectionTitle}>Version: ${version}</Text>
             </View>
-            <TouchableOpacity 
-              style={{ borderRadius: 15, display: 'flex', flex: 1, borderWidth: 1, borderColor: 'black' }}
-              onPress={() => {
-                throw new Error("What is happening");
-              }}
-            >
+            <TouchableOpacity style={styles.buttons} onPress={onButtonPress}>
+              <Text>Update the app</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.buttons} onPress={onGetVersion}>
+              <Text>Get Version</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.buttons} onPress={onCrash}>
               <Text>Crash the app</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.buttons} onPress={getVersionInfo}>
+              <Text>Get Version</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -85,6 +139,14 @@ const App: () => React$Node = () => {
 const styles = StyleSheet.create({
   scrollView: {
     backgroundColor: Colors.lighter,
+  },
+  buttons: {
+    flex: 1,
+    display: 'flex',
+    borderWidth: 1,
+    borderRadius: 15,
+    borderColor: 'black',
+    marginHorizontal: 10,
   },
   engine: {
     position: 'absolute',
@@ -121,4 +183,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default App;
+export default CodePush(App);
